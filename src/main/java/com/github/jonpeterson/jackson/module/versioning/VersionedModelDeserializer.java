@@ -34,33 +34,25 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TreeTraversingParser;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 
 public class VersionedModelDeserializer<T> extends StdDeserializer<T> implements ResolvableDeserializer {
     private final StdDeserializer<T> delegate;
     private final JsonVersionedModel jsonVersionedModel;
-    private final VersionedModelConverter converter;
+    private final VersionedModelConverterFactory versionedModelConverterFactory;
     private final BeanPropertyDefinition serializeToVersionProperty;
     private final JsonSerializeToVersion serializeToVersionAnnotation;
 
-    public VersionedModelDeserializer(StdDeserializer<T> delegate, JsonVersionedModel jsonVersionedModel, BeanPropertyDefinition serializeToVersionProperty) {
+    public VersionedModelDeserializer(
+            StdDeserializer<T> delegate,
+            VersionedModelConverterFactory versionedModelConverterFactory, JsonVersionedModel jsonVersionedModel,
+            BeanPropertyDefinition serializeToVersionProperty
+    ) {
         super(delegate.getValueType());
-
         this.delegate = delegate;
         this.jsonVersionedModel = jsonVersionedModel;
+        this.versionedModelConverterFactory = versionedModelConverterFactory;
         this.serializeToVersionProperty = serializeToVersionProperty;
         this.serializeToVersionAnnotation = serializeToVersionProperty != null ? serializeToVersionProperty.getAccessor().getAnnotation(JsonSerializeToVersion.class) : null;
-
-        Class<? extends VersionedModelConverter> converterClass = jsonVersionedModel.toCurrentConverterClass();
-        if(converterClass != VersionedModelConverter.class)
-            try {
-                Constructor<? extends VersionedModelConverter> constructor = converterClass.getConstructor();
-                this.converter = constructor.newInstance();
-            } catch(Exception e) {
-                throw new RuntimeException("unable to create instance of converter '" + converterClass.getName() + "'", e);
-            }
-        else
-            converter = null;
     }
 
     @Override
@@ -91,6 +83,7 @@ public class VersionedModelDeserializer<T> extends StdDeserializer<T> implements
             throw context.mappingException("'" + jsonVersionedModel.propertyName() + "' property was null and defaultDeserializeToVersion was not set");
 
         // convert the model if converter specified and model needs converting
+        VersionedModelConverter converter = versionedModelConverterFactory.create(jsonVersionedModel.toCurrentConverterClass());
         if(converter != null && (jsonVersionedModel.alwaysConvert() || !modelVersion.equals(jsonVersionedModel.currentVersion())))
             modelData = converter.convert(modelData, modelVersion, jsonVersionedModel.currentVersion(), context.getNodeFactory());
 

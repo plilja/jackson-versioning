@@ -32,18 +32,22 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 class VersioningBeanSerializationModifier extends BeanSerializerModifier {
 
-    // here just to make generics work without warnings
-    private static <T> VersionedModelSerializer<T> createVersioningSerializer(StdSerializer<T> serializer, JsonVersionedModel jsonVersionedModel, BeanPropertyDefinition serializeToVersionProperty) {
-        return new VersionedModelSerializer<T>(serializer, jsonVersionedModel, serializeToVersionProperty);
+    private final VersionedModelConverterFactory versionedModelConverterFactory;
+
+    VersioningBeanSerializationModifier(VersionedModelConverterFactory versionedModelConverterFactory) {
+        this.versionedModelConverterFactory = versionedModelConverterFactory;
     }
 
+    private <T> VersionedModelSerializer<T> createVersioningSerializer(StdSerializer<T> serializer, JsonVersionedModel jsonVersionedModel, BeanPropertyDefinition serializeToVersionProperty) {
+        return new VersionedModelSerializer<T>(serializer, versionedModelConverterFactory, jsonVersionedModel, serializeToVersionProperty);
+    }
 
     @Override
     public JsonSerializer<?> modifySerializer(SerializationConfig config, BeanDescription beanDescription, JsonSerializer<?> serializer) {
-        if(serializer instanceof StdSerializer) {
+        if (serializer instanceof StdSerializer) {
             JsonVersionedModel jsonVersionedModel = beanDescription.getClassAnnotations().get(JsonVersionedModel.class);
-            if(jsonVersionedModel != null)
-                return createVersioningSerializer((StdSerializer)serializer, jsonVersionedModel, VersionedModelUtils.getSerializeToVersionProperty(beanDescription));
+            if (jsonVersionedModel != null)
+                return createVersioningSerializer((StdSerializer) serializer, jsonVersionedModel, VersionedModelUtils.getSerializeToVersionProperty(beanDescription));
         }
 
         return serializer;

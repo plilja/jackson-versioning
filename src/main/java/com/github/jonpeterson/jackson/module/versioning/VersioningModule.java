@@ -31,8 +31,12 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 public class VersioningModule extends SimpleModule {
 
     public VersioningModule() {
+        this(new ReflectionVersionedModelConverterFactory());
+    }
+
+    public VersioningModule(VersionedModelConverterFactory versionedModelConverterFactory) {
         super("VersioningModule");
-        setDeserializerModifier(new VersioningBeanDeserializationModifier());
-        setSerializerModifier(new VersioningBeanSerializationModifier());
+        setDeserializerModifier(new VersioningBeanDeserializationModifier(versionedModelConverterFactory));
+        setSerializerModifier(new VersioningBeanSerializationModifier(versionedModelConverterFactory));
     }
 }

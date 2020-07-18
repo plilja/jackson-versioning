@@ -39,26 +39,21 @@ import java.io.IOException;
 
 public class VersionedModelSerializer<T> extends StdSerializer<T> implements ResolvableSerializer {
     private final StdSerializer<T> delegate;
+    private final VersionedModelConverterFactory versionedModelConverterFactory;
     private final JsonVersionedModel jsonVersionedModel;
-    private final VersionedModelConverter converter;
     private final BeanPropertyDefinition serializeToVersionProperty;
 
-    public VersionedModelSerializer(StdSerializer<T> delegate, JsonVersionedModel jsonVersionedModel, BeanPropertyDefinition serializeToVersionProperty) {
+    public VersionedModelSerializer(
+            StdSerializer<T> delegate,
+            VersionedModelConverterFactory versionedModelConverterFactory,
+            JsonVersionedModel jsonVersionedModel,
+            BeanPropertyDefinition serializeToVersionProperty) {
         super(delegate.handledType());
 
         this.delegate = delegate;
+        this.versionedModelConverterFactory = versionedModelConverterFactory;
         this.jsonVersionedModel = jsonVersionedModel;
         this.serializeToVersionProperty = serializeToVersionProperty;
-
-        Class<? extends VersionedModelConverter> converterClass = jsonVersionedModel.toPastConverterClass();
-        if(converterClass != VersionedModelConverter.class)
-            try {
-                this.converter = converterClass.newInstance();
-            } catch(Exception e) {
-                throw new RuntimeException("unable to create instance of converter '" + converterClass.getName() + "'", e);
-            }
-        else
-            converter = null;
     }
 
     @Override
@@ -108,6 +103,7 @@ public class VersionedModelSerializer<T> extends StdSerializer<T> implements Res
 
         // convert model data if there is a converter and targetVersion is different than the currentVersion or if
         //   alwaysConvert is true
+        VersionedModelConverter converter = versionedModelConverterFactory.create(jsonVersionedModel.toPastConverterClass());
         if(converter != null && (jsonVersionedModel.alwaysConvert() || !targetVersion.equals(jsonVersionedModel.currentVersion())))
             modelData = converter.convert(modelData, jsonVersionedModel.currentVersion(), targetVersion, JsonNodeFactory.instance);
 
