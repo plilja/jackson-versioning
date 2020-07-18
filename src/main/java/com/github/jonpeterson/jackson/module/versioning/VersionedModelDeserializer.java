@@ -34,6 +34,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TreeTraversingParser;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 
 public class VersionedModelDeserializer<T> extends StdDeserializer<T> implements ResolvableDeserializer {
     private final StdDeserializer<T> delegate;
@@ -53,7 +54,8 @@ public class VersionedModelDeserializer<T> extends StdDeserializer<T> implements
         Class<? extends VersionedModelConverter> converterClass = jsonVersionedModel.toCurrentConverterClass();
         if(converterClass != VersionedModelConverter.class)
             try {
-                this.converter = converterClass.newInstance();
+                Constructor<? extends VersionedModelConverter> constructor = converterClass.getConstructor();
+                this.converter = constructor.newInstance();
             } catch(Exception e) {
                 throw new RuntimeException("unable to create instance of converter '" + converterClass.getName() + "'", e);
             }
