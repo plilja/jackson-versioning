@@ -44,7 +44,8 @@ class VersionedModelDeserializer<T> extends StdDeserializer<T> implements Resolv
 
     VersionedModelDeserializer(
             StdDeserializer<T> delegate,
-            VersionedModelConverterFactory versionedModelConverterFactory, JsonVersionedModel jsonVersionedModel,
+            VersionedModelConverterFactory versionedModelConverterFactory,
+            JsonVersionedModel jsonVersionedModel,
             BeanPropertyDefinition serializeToVersionProperty
     ) {
         super(delegate.getValueType());
