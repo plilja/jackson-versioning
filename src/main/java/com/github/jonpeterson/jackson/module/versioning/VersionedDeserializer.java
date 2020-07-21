@@ -58,8 +58,8 @@ class VersionedDeserializer<T, V extends Comparable<V>> extends StdDeserializer<
 
     @Override
     public void resolve(DeserializationContext context) throws JsonMappingException {
-        if(delegate instanceof ResolvableDeserializer)
-            ((ResolvableDeserializer)delegate).resolve(context);
+        if (delegate instanceof ResolvableDeserializer)
+            ((ResolvableDeserializer) delegate).resolve(context);
     }
 
     @Override
@@ -73,16 +73,17 @@ class VersionedDeserializer<T, V extends Comparable<V>> extends StdDeserializer<
 
         JsonNode modelVersionNode = modelData.remove(versionProperty.getName());
 
-        V modelVersion = versionsDescription.fromString(modelVersionNode.asText());
+        V version = versionsDescription.fromString(modelVersionNode.asText());
 
-        if (modelVersion == null) {
+        if (version == null) {
             throw context.mappingException("'" + versionProperty.getName() + "' property was null and defaultDeserializeToVersion was not set");
         }
 
         // convert the model if converter specified and model needs converting
         VersionConverter<V> converter = versionedConverterFactory.create((Class) jsonVersioned.converterClass());
-        if (converter != null && !modelVersion.equals(versionsDescription.getCurrentVersion()))
-            modelData = converter.convert(modelData, modelVersion, versionsDescription.getCurrentVersion(), context.getNodeFactory());
+        if (converter != null && version.compareTo(versionsDescription.getCurrentVersion()) < 0) {
+            converter.convertUp(modelData, version, versionsDescription.getCurrentVersion(), context.getNodeFactory());
+        }
 
         // set the serializeToVersionProperty value to the source model version if the defaultToSource property is true
 //        if(serializeToVersionAnnotation != null && serializeToVersionAnnotation.defaultToSource())

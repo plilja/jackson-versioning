@@ -14,7 +14,7 @@ import java.util.TreeMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class AbstractVersionConverter<V extends Comparable<V>> implements VersionConverter<V> {
+public abstract class AbstractVersionConverter<V extends Comparable<V>> implements VersionConverter<V> {
     private final SortedMap<V, List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>>> upConverters = new TreeMap<>();
     private final SortedMap<V, List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>>> downConverters = new TreeMap<>((o1, o2) -> -o1.compareTo(o2));
     private final Class<?> targetClass;
@@ -141,26 +141,25 @@ public class AbstractVersionConverter<V extends Comparable<V>> implements Versio
         );
     }
 
-    @Override
-    public ObjectNode convert(ObjectNode modelData, V modelVersion, V targetModelVersion, JsonNodeFactory nodeFactory) {
-        ObjectNode result = modelData;
-        if (modelVersion.compareTo(targetModelVersion) <= 0) {
-            for (List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>> converters : upConverters.subMap(modelVersion, targetModelVersion).values()) {
-                for (BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> converter : converters) {
-                    result = converter.apply(result, nodeFactory);
-                }
-            }
-        } else {
-            for (List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>> converters : downConverters.subMap(modelVersion, targetModelVersion).values()) {
-                for (BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> converter : converters) {
-                    result = converter.apply(result, nodeFactory);
-                }
-            }
-        }
-        return modelData;
-    }
-
     public List<String> describe() {
         return Collections.unmodifiableList(descriptions);
+    }
+
+    @Override
+    public void convertDown(ObjectNode modelData, V fromVersion, V toVersion, JsonNodeFactory nodeFactory) {
+        for (List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>> converters : downConverters.subMap(fromVersion, toVersion).values()) {
+            for (BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> converter : converters) {
+                converter.apply(modelData, nodeFactory);
+            }
+        }
+    }
+
+    @Override
+    public void convertUp(ObjectNode modelData, V fromVersion, V toVersion, JsonNodeFactory nodeFactory) {
+        for (List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>> converters : upConverters.subMap(fromVersion, toVersion).values()) {
+            for (BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> converter : converters) {
+                converter.apply(modelData, nodeFactory);
+            }
+        }
     }
 }

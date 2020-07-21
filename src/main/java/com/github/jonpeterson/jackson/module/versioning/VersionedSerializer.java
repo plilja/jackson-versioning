@@ -109,8 +109,9 @@ class VersionedSerializer<T, V extends Comparable<V>> extends StdSerializer<T> i
         // convert model data if there is a converter and targetVersion is different than the currentVersion or if
         //   alwaysConvert is true
         VersionConverter<V> converter = versionedConverterFactory.create((Class) jsonVersioned.converterClass());
-        if (converter != null && !targetVersion.equals(versionsDescription.getCurrentVersion()))
-            modelData = converter.convert(modelData, versionsDescription.getCurrentVersion(), targetVersion, JsonNodeFactory.instance);
+        if (converter != null && targetVersion.compareTo(versionsDescription.getCurrentVersion()) < 0) {
+            converter.convertDown(modelData, versionsDescription.getCurrentVersion(), targetVersion, JsonNodeFactory.instance);
+        }
 
         // add target version to model data if it wasn't the version to suppress
         modelData.put(versionProperty.getName(), targetVersion.toString());
