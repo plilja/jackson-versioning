@@ -1,3 +1,26 @@
+/*
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2016 Jon Peterson
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 package com.github.jonpeterson.jackson.module.versioning;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -43,7 +66,7 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
                     modelData.remove(attributeName);
                     return modelData;
                 },
-                setFromDefaultValue(attributeName, (ignored) -> defaultValue),
+                setFromValue(attributeName, (ignored) -> defaultValue),
                 String.format("Attribute %s was added to class %s", attributeName, targetClass.getSimpleName())
         );
     }
@@ -56,7 +79,7 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
                     modelData.remove(attributeName);
                     return modelData;
                 },
-                setFromDefaultValue(attributeName, valueProvider),
+                setFromValue(attributeName, valueProvider),
                 String.format("Attribute %s was added to class %s", attributeName, targetClass.getSimpleName())
         );
     }
@@ -65,7 +88,7 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
         addConverter(
                 downModelVersion,
                 upModelVersion,
-                setFromDefaultValue(attributeName, (ignored) -> defaultValue),
+                setFromValue(attributeName, (ignored) -> defaultValue),
                 (modelData, nodeFactory) -> {
                     modelData.remove(attributeName);
                     return modelData;
@@ -78,7 +101,7 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
         addConverter(
                 downModelVersion,
                 upModelVersion,
-                setFromDefaultValue(attributeName, valueProvider),
+                setFromValue(attributeName, valueProvider),
                 (modelData, nodeFactory) -> {
                     modelData.remove(attributeName);
                     return modelData;
@@ -87,7 +110,23 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
         );
     }
 
-    private BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> setFromDefaultValue(String attributeName, Function<ObjectNode, Object> defaultValueSupplier) {
+    protected void attributeModified(V downModelVersion, V upModelVersion, String attributeName, Function<JsonNode, Object> valueDownModifier, Function<JsonNode, Object> valueUpModifier) {
+        addConverter(
+                downModelVersion,
+                upModelVersion,
+                setFromValue(attributeName, (modelData) -> {
+                    JsonNode jsonNode = modelData.get(attributeName);
+                    return valueDownModifier.apply(jsonNode);
+                }),
+                setFromValue(attributeName, (modelData) -> {
+                    JsonNode jsonNode = modelData.get(attributeName);
+                    return valueUpModifier.apply(jsonNode);
+                }),
+                String.format("Attribute %s was removed from class %s", attributeName, targetClass.getSimpleName())
+        );
+    }
+
+    private BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> setFromValue(String attributeName, Function<ObjectNode, Object> defaultValueSupplier) {
         return (ObjectNode modelData, JsonNodeFactory nodeFactory) -> {
             Object defaultValue = defaultValueSupplier.apply(modelData);
             JsonNode node = nodeFactory.nullNode();
