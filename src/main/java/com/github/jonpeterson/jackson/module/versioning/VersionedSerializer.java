@@ -37,29 +37,35 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-class VersionedModelSerializer<T> extends StdSerializer<T> implements ResolvableSerializer {
+class VersionedSerializer<T, V extends Comparable<V>> extends StdSerializer<T> implements ResolvableSerializer {
     private final StdSerializer<T> delegate;
-    private final VersionedModelConverterFactory versionedModelConverterFactory;
-    private final JsonVersionedModel jsonVersionedModel;
+    private final VersionedConverterFactory<V> versionedConverterFactory;
+    private final JsonVersioned jsonVersioned;
+    private final BeanPropertyDefinition versionProperty;
     private final BeanPropertyDefinition serializeToVersionProperty;
+    private final VersionsDescription<V> versionsDescription;
 
-    VersionedModelSerializer(
+    VersionedSerializer(
             StdSerializer<T> delegate,
-            VersionedModelConverterFactory versionedModelConverterFactory,
-            JsonVersionedModel jsonVersionedModel,
-            BeanPropertyDefinition serializeToVersionProperty) {
+            VersionedConverterFactory<V> versionedConverterFactory,
+            JsonVersioned jsonVersioned,
+            BeanPropertyDefinition versionProperty,
+            BeanPropertyDefinition serializeToVersionProperty,
+            VersionsDescription<V> versionsDescription) {
         super(delegate.handledType());
 
         this.delegate = delegate;
-        this.versionedModelConverterFactory = versionedModelConverterFactory;
-        this.jsonVersionedModel = jsonVersionedModel;
+        this.versionedConverterFactory = versionedConverterFactory;
+        this.jsonVersioned = jsonVersioned;
+        this.versionProperty = versionProperty;
         this.serializeToVersionProperty = serializeToVersionProperty;
+        this.versionsDescription = versionsDescription;
     }
 
     @Override
     public void resolve(SerializerProvider provider) throws JsonMappingException {
-        if(delegate instanceof ResolvableSerializer)
-            ((ResolvableSerializer)delegate).resolve(provider);
+        if (delegate instanceof ResolvableSerializer)
+            ((ResolvableSerializer) delegate).resolve(provider);
     }
 
     @Override
@@ -79,7 +85,7 @@ class VersionedModelSerializer<T> extends StdSerializer<T> implements Resolvable
         ByteArrayOutputStream buffer = new ByteArrayOutputStream(4096);
         JsonGenerator bufferGenerator = factory.createGenerator(buffer);
         try {
-            if(typeSerializer != null)
+            if (typeSerializer != null)
                 delegate.serializeWithType(value, bufferGenerator, provider, typeSerializer);
             else
                 delegate.serialize(value, bufferGenerator, provider);
@@ -91,25 +97,23 @@ class VersionedModelSerializer<T> extends StdSerializer<T> implements Resolvable
 
         // set target version to @SerializeToVersion's value, @JsonVersionModel's defaultSerializeToVersion, or
         //   @JsonVersionModel's currentVersion in that order
-        String targetVersion = null;
-        if(serializeToVersionProperty != null) {
-            targetVersion = (String)serializeToVersionProperty.getAccessor().getValue(value);
+        V targetVersion = null;
+        if (serializeToVersionProperty != null && serializeToVersionProperty.getAccessor().getValue(value) != null) {
+            targetVersion = versionsDescription.fromString((String) serializeToVersionProperty.getAccessor().getValue(value));
             modelData.remove(serializeToVersionProperty.getName());
         }
-        if(targetVersion == null)
-            targetVersion = jsonVersionedModel.defaultSerializeToVersion();
-        if(targetVersion.isEmpty())
-            targetVersion = jsonVersionedModel.currentVersion();
+        if (targetVersion == null) {
+            targetVersion = versionsDescription.getCurrentVersion();
+        }
 
         // convert model data if there is a converter and targetVersion is different than the currentVersion or if
         //   alwaysConvert is true
-        VersionedModelConverter converter = versionedModelConverterFactory.create(jsonVersionedModel.toPastConverterClass());
-        if(converter != null && (jsonVersionedModel.alwaysConvert() || !targetVersion.equals(jsonVersionedModel.currentVersion())))
-            modelData = converter.convert(modelData, jsonVersionedModel.currentVersion(), targetVersion, JsonNodeFactory.instance);
+        VersionConverter<V> converter = versionedConverterFactory.create((Class) jsonVersioned.converterClass());
+        if (converter != null && !targetVersion.equals(versionsDescription.getCurrentVersion()))
+            modelData = converter.convert(modelData, versionsDescription.getCurrentVersion(), targetVersion, JsonNodeFactory.instance);
 
         // add target version to model data if it wasn't the version to suppress
-        if(!targetVersion.equals(jsonVersionedModel.versionToSuppressPropertySerialization()))
-            modelData.put(jsonVersionedModel.propertyName(), targetVersion);
+        modelData.put(versionProperty.getName(), targetVersion.toString());
 
         // write node
         generator.writeTree(modelData);

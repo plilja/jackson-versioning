@@ -27,9 +27,9 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
- * Converter used by {@link JsonVersionedModel} for resolving model versioning.
+ * Converter used by {@link JsonVersioned} for resolving model versioning.
  */
-public interface VersionedModelConverter {
+public interface VersionConverter<V> {
 
     /**
      * Returns JSON data in the target version.
@@ -40,5 +40,5 @@ public interface VersionedModelConverter {
      * @param nodeFactory        node factory
      * @return model data converted to target version
      */
-    ObjectNode convert(ObjectNode modelData, String modelVersion, String targetModelVersion, JsonNodeFactory nodeFactory);
+    ObjectNode convert(ObjectNode modelData, V modelVersion, V targetModelVersion, JsonNodeFactory nodeFactory);
 }

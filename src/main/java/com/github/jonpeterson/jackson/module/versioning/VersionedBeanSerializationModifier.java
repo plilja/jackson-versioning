@@ -30,24 +30,41 @@ import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
-class VersioningBeanSerializationModifier extends BeanSerializerModifier {
+class VersionedBeanSerializationModifier<V extends Comparable<V>> extends BeanSerializerModifier {
 
-    private final VersionedModelConverterFactory versionedModelConverterFactory;
+    private final VersionedConverterFactory<V> versionedConverterFactory;
+    private final VersionsDescription<V> versionsDescription;
 
-    VersioningBeanSerializationModifier(VersionedModelConverterFactory versionedModelConverterFactory) {
-        this.versionedModelConverterFactory = versionedModelConverterFactory;
+    VersionedBeanSerializationModifier(VersionedConverterFactory<V> versionedConverterFactory, VersionsDescription<V> versionsDescription) {
+        this.versionedConverterFactory = versionedConverterFactory;
+        this.versionsDescription = versionsDescription;
     }
 
-    private <T> VersionedModelSerializer<T> createVersioningSerializer(StdSerializer<T> serializer, JsonVersionedModel jsonVersionedModel, BeanPropertyDefinition serializeToVersionProperty) {
-        return new VersionedModelSerializer<T>(serializer, versionedModelConverterFactory, jsonVersionedModel, serializeToVersionProperty);
+    private <T> VersionedSerializer<T, V> createVersionedSerializer(
+            StdSerializer<T> serializer,
+            JsonVersioned jsonVersioned,
+            BeanPropertyDefinition versionProperty,
+            BeanPropertyDefinition serializeToVersionProperty) {
+        return new VersionedSerializer<T, V>(
+                serializer,
+                versionedConverterFactory,
+                jsonVersioned,
+                versionProperty,
+                serializeToVersionProperty,
+                versionsDescription);
     }
 
     @Override
     public JsonSerializer<?> modifySerializer(SerializationConfig config, BeanDescription beanDescription, JsonSerializer<?> serializer) {
         if (serializer instanceof StdSerializer) {
-            JsonVersionedModel jsonVersionedModel = beanDescription.getClassAnnotations().get(JsonVersionedModel.class);
-            if (jsonVersionedModel != null)
-                return createVersioningSerializer((StdSerializer) serializer, jsonVersionedModel, VersionedModelUtils.getSerializeToVersionProperty(beanDescription));
+            JsonVersioned jsonVersioned = beanDescription.getClassAnnotations().get(JsonVersioned.class);
+            if (jsonVersioned != null)
+                return createVersionedSerializer(
+                        (StdSerializer) serializer,
+                        jsonVersioned,
+                        VersionedUtils.getVersionProperty(beanDescription),
+                        VersionedUtils.getSerializeToVersionProperty(beanDescription)
+                );
         }
 
         return serializer;

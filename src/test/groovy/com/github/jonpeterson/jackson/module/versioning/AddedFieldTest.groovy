@@ -7,59 +7,55 @@ import spock.lang.Unroll
 
 class AddedFieldTest extends Specification {
 
-    def mapper = new ObjectMapper().registerModule(new VersioningModule())
+    def mapper = new ObjectMapper().registerModule(new VersioningModule(Vs))
 
-    @JsonVersionedModel(currentVersion = '3',
-            defaultDeserializeToVersion = "3",
-            toCurrentConverterClass = CarConverter,
-            toPastConverterClass = CarConverter,
-            propertyName = '_version'
-    )
+    enum Vs {
+        V1, V2, V3
+    }
+
+    @JsonVersioned(converterClass = CarConverter)
     static class Car {
         String model
         String make
         int yearMade; // added version 2
         String registrationPlate; // added version 3
         Person owner
+        @JsonVersionAttribute
         String _version
-        @JsonSerializeToVersion
+        @JsonVersionToAttribute
         String _toVersion
     }
 
-    @JsonVersionedModel(currentVersion = '3',
-            defaultDeserializeToVersion = "3",
-            toCurrentConverterClass = PersonConverter,
-            toPastConverterClass = PersonConverter,
-            propertyName = '_version'
-    )
+    @JsonVersioned(converterClass = PersonConverter)
     static class Person {
         String firstName
         String lastName
+        @JsonVersionAttribute
         String _version
-        @JsonSerializeToVersion
+        @JsonVersionToAttribute
         String _toVersion
         String socialSecurityNumber // added version 2
     }
 
-    static class CarConverter extends AbstractUpAndDownVersionedModelConverter {
+    static class CarConverter extends AbstractVersionConverter<Vs> {
         CarConverter() {
             super(Car.class)
-            attributeAdded("1", "2", "yearMade", 2020)
-            attributeAdded("2", "3", "registrationPlate", "ABC-123")
+            attributeAdded(Vs.V1, Vs.V2, "yearMade", 2020)
+            attributeAdded(Vs.V2, Vs.V3, "registrationPlate", "ABC-123")
         }
     }
 
-    static class PersonConverter extends AbstractUpAndDownVersionedModelConverter {
+    static class PersonConverter extends AbstractVersionConverter<Vs> {
         PersonConverter() {
             super(Person.class)
-            attributeAdded("1", "2", "socialSecurityNumber", "1234567890")
+            attributeAdded(Vs.V1, Vs.V2, "socialSecurityNumber", "1234567890")
         }
     }
 
     @Unroll
     def 'to past version'() {
         when:
-        def car = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","socialSecurityNumber":"1234567890","_version":"3"},"registrationPlate":"ABC-123","yearMade":2020,"_version":"3"}', Car)
+        def car = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","socialSecurityNumber":"1234567890","_version":"V3"},"registrationPlate":"ABC-123","yearMade":2020,"_version":"V3"}', Car)
         car._toVersion = toVersion
         car.owner._toVersion = toVersion
         def actual = mapper.readValue(mapper.writeValueAsString(car), Map)
@@ -69,16 +65,15 @@ class AddedFieldTest extends Specification {
 
         where:
         toVersion | expected
-        1         | [_version: '1', make: 'toyota', model: 'camry', 'owner': [_version: '1', firstName: 'Per', 'lastName': 'Persson']]
-        2         | [_version: '2', make: 'toyota', model: 'camry', 'yearMade': 2020, 'owner': [_version: '2', firstName: 'Per', 'lastName': 'Persson', 'socialSecurityNumber': '1234567890']]
-        3         | [_version: '3', make: 'toyota', model: 'camry', 'yearMade': 2020, 'registrationPlate': 'ABC-123', 'owner': [_version: '3', firstName: 'Per', 'lastName': 'Persson', 'socialSecurityNumber': '1234567890']]
+        Vs.V1     | [_version: 'V1', make: 'toyota', model: 'camry', 'owner': [_version: 'V1', firstName: 'Per', 'lastName': 'Persson']]
+        Vs.V2     | [_version: 'V2', make: 'toyota', model: 'camry', 'yearMade': 2020, 'owner': [_version: 'V2', firstName: 'Per', 'lastName': 'Persson', 'socialSecurityNumber': '1234567890']]
+        Vs.V3     | [_version: 'V3', make: 'toyota', model: 'camry', 'yearMade': 2020, 'registrationPlate': 'ABC-123', 'owner': [_version: 'V3', firstName: 'Per', 'lastName': 'Persson', 'socialSecurityNumber': '1234567890']]
     }
 
-    @Unroll
     def 'to current version'() {
         when:
-        def carV1 = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","_version":"1"},"_version":"1"}', Car)
-        def carV3 = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","socialSecurityNumber":"1234567890","_version":"3"},"registrationPlate":"ABC-123","yearMade":2020,"_version":"3"}', Car)
+        def carV1 = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","_version":"V1"},"_version":"V1"}', Car)
+        def carV3 = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","socialSecurityNumber":"1234567890","_version":"V3"},"registrationPlate":"ABC-123","yearMade":2020,"_version":"V3"}', Car)
         def actual = mapper.readValue(mapper.writeValueAsString(carV1), Map)
         def expected = mapper.readValue(mapper.writeValueAsString(carV3), Map)
 

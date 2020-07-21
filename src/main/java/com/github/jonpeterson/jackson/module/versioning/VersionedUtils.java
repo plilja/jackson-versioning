@@ -28,10 +28,18 @@ import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.fasterxml.jackson.databind.introspect.POJOPropertyBuilder;
 
-final class VersionedModelUtils {
+final class VersionedUtils {
+
+    static BeanPropertyDefinition getVersionProperty(BeanDescription beanDescription) throws RuntimeException {
+        return getPropertyWithAnnotation(beanDescription, JsonVersionAttribute.class);
+    }
 
     static BeanPropertyDefinition getSerializeToVersionProperty(BeanDescription beanDescription) throws RuntimeException {
-        BeanPropertyDefinition serializeToVersionProperty = null;
+        return getPropertyWithAnnotation(beanDescription, JsonVersionToAttribute.class);
+    }
+
+    private static BeanPropertyDefinition getPropertyWithAnnotation(BeanDescription beanDescription, Class<?> propertyAnnotation) {
+        BeanPropertyDefinition result = null;
         for (BeanPropertyDefinition definition : beanDescription.findProperties()) {
 
             // merge field and accessor annotations
@@ -39,19 +47,19 @@ final class VersionedModelUtils {
                 ((POJOPropertyBuilder) definition).mergeAnnotations(true);
 
             AnnotatedMember accessor = definition.getAccessor();
-            if (accessor != null && accessor.hasAnnotation(JsonSerializeToVersion.class)) {
-                if (serializeToVersionProperty != null)
-                    throw new RuntimeException("@" + JsonSerializeToVersion.class.getSimpleName() + " must be present on at most one field or method");
-                if(accessor.getRawType() != String.class || (definition.getField() == null && !definition.hasGetter()))
-                    throw new RuntimeException("@" + JsonSerializeToVersion.class.getSimpleName() + " must be on a field or a getter method that returns a String");
-                serializeToVersionProperty = definition;
+            if (accessor != null && accessor.hasAnnotation(propertyAnnotation)) {
+                if (result != null)
+                    throw new RuntimeException("@" + propertyAnnotation.getSimpleName() + " must be present on at most one field or method");
+                if (accessor.getRawType() != String.class || (definition.getField() == null && !definition.hasGetter()))
+                    throw new RuntimeException("@" + propertyAnnotation.getSimpleName() + " must be on a field or a getter method that returns a String");
+                result = definition;
             }
         }
 
-        return serializeToVersionProperty;
+        return result;
     }
 
 
-    private VersionedModelUtils() {
+    private VersionedUtils() {
     }
 }

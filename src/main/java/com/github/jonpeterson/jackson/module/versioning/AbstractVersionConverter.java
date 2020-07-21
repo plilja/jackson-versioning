@@ -14,19 +14,19 @@ import java.util.TreeMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class AbstractUpAndDownVersionedModelConverter implements VersionedModelConverter {
-    private final SortedMap<String, List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>>> upConverters = new TreeMap<>();
-    private final SortedMap<String, List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>>> downConverters = new TreeMap<>((o1, o2) -> -o1.compareTo(o2));
+public class AbstractVersionConverter<V extends Comparable<V>> implements VersionConverter<V> {
+    private final SortedMap<V, List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>>> upConverters = new TreeMap<>();
+    private final SortedMap<V, List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>>> downConverters = new TreeMap<>((o1, o2) -> -o1.compareTo(o2));
     private final Class<?> targetClass;
     private final List<String> descriptions = new ArrayList<>();
 
-    public AbstractUpAndDownVersionedModelConverter(Class<?> targetClass) {
+    public AbstractVersionConverter(Class<?> targetClass) {
         this.targetClass = targetClass;
     }
 
     private void addConverter(
-            String downVersion,
-            String upVersion,
+            V downVersion,
+            V upVersion,
             BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> downConverter,
             BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> upConverter,
             String description) {
@@ -35,7 +35,7 @@ public class AbstractUpAndDownVersionedModelConverter implements VersionedModelC
         descriptions.add(description);
     }
 
-    protected void attributeAdded(String downModelVersion, String upModelVersion, String attributeName, Object defaultValue) {
+    protected void attributeAdded(V downModelVersion, V upModelVersion, String attributeName, Object defaultValue) {
         addConverter(
                 downModelVersion,
                 upModelVersion,
@@ -48,7 +48,7 @@ public class AbstractUpAndDownVersionedModelConverter implements VersionedModelC
         );
     }
 
-    protected void attributeAdded(String downModelVersion, String upModelVersion, String attributeName, Function<ObjectNode, Object> valueProvider) {
+    protected void attributeAdded(V downModelVersion, V upModelVersion, String attributeName, Function<ObjectNode, Object> valueProvider) {
         addConverter(
                 downModelVersion,
                 upModelVersion,
@@ -61,7 +61,7 @@ public class AbstractUpAndDownVersionedModelConverter implements VersionedModelC
         );
     }
 
-    protected void attributeRemoved(String downModelVersion, String upModelVersion, String attributeName, Object defaultValue) {
+    protected void attributeRemoved(V downModelVersion, V upModelVersion, String attributeName, Object defaultValue) {
         addConverter(
                 downModelVersion,
                 upModelVersion,
@@ -74,7 +74,7 @@ public class AbstractUpAndDownVersionedModelConverter implements VersionedModelC
         );
     }
 
-    protected void attributeRemoved(String downModelVersion, String upModelVersion, String attributeName, Function<ObjectNode, Object> valueProvider) {
+    protected void attributeRemoved(V downModelVersion, V upModelVersion, String attributeName, Function<ObjectNode, Object> valueProvider) {
         addConverter(
                 downModelVersion,
                 upModelVersion,
@@ -121,7 +121,7 @@ public class AbstractUpAndDownVersionedModelConverter implements VersionedModelC
         };
     }
 
-    protected void attributeRenamed(String downModelVersion, String upModelVersion, String oldAttributeName, String newAttributeName) {
+    protected void attributeRenamed(V downModelVersion, V upModelVersion, String oldAttributeName, String newAttributeName) {
         addConverter(
                 downModelVersion,
                 upModelVersion,
@@ -142,7 +142,7 @@ public class AbstractUpAndDownVersionedModelConverter implements VersionedModelC
     }
 
     @Override
-    public ObjectNode convert(ObjectNode modelData, String modelVersion, String targetModelVersion, JsonNodeFactory nodeFactory) {
+    public ObjectNode convert(ObjectNode modelData, V modelVersion, V targetModelVersion, JsonNodeFactory nodeFactory) {
         ObjectNode result = modelData;
         if (modelVersion.compareTo(targetModelVersion) <= 0) {
             for (List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>> converters : upConverters.subMap(modelVersion, targetModelVersion).values()) {

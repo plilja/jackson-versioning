@@ -45,7 +45,7 @@ GET  /api/car/v2/{id} ->  CarV2
 ...
 ```
 
-But what if there was a way that only required a single model class that could be annotated to control conversion between versions of the raw data before deserialization and after serialization? That is what this Jackson module provides.
+But what if there was a way that only required a single model class that could be annotated to control conversion between versionsDescription of the raw data before deserialization and after serialization? That is what this Jackson module provides.
 
 ## Diagram
 ![Diagram](images/diagram.png)

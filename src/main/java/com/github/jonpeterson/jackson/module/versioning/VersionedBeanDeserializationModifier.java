@@ -30,27 +30,29 @@ import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 
-class VersioningBeanDeserializationModifier extends BeanDeserializerModifier {
+class VersionedBeanDeserializationModifier<V extends Comparable<V>> extends BeanDeserializerModifier {
 
-    private final VersionedModelConverterFactory versionedModelConverterFactory;
+    private final VersionedConverterFactory<V> versionedConverterFactory;
+    private final VersionsDescription<V> versionsDescription;
 
-    VersioningBeanDeserializationModifier(VersionedModelConverterFactory versionedModelConverterFactory) {
-        this.versionedModelConverterFactory = versionedModelConverterFactory;
+    VersionedBeanDeserializationModifier(VersionedConverterFactory<V> versionedConverterFactory, VersionsDescription<V> versionsDescription) {
+        this.versionedConverterFactory = versionedConverterFactory;
+        this.versionsDescription = versionsDescription;
     }
 
-    private <T> VersionedModelDeserializer<T> createVersioningDeserializer(StdDeserializer<T> deserializer, JsonVersionedModel jsonVersionedModel, BeanPropertyDefinition serializeToVersionProperty) {
-        return new VersionedModelDeserializer<T>(deserializer, versionedModelConverterFactory, jsonVersionedModel, serializeToVersionProperty);
+    private <T> VersionedDeserializer<T, V> createVersioningDeserializer(StdDeserializer<T> deserializer, JsonVersioned jsonVersioned, BeanPropertyDefinition versionProperty) {
+        return new VersionedDeserializer<T, V>(deserializer, versionedConverterFactory, jsonVersioned, versionsDescription, versionProperty);
     }
 
     @Override
     public JsonDeserializer<?> modifyDeserializer(DeserializationConfig config, BeanDescription beanDescription, JsonDeserializer<?> deserializer) {
         if (deserializer instanceof StdDeserializer) {
-            JsonVersionedModel jsonVersionedModel = beanDescription.getClassAnnotations().get(JsonVersionedModel.class);
-            if (jsonVersionedModel != null)
+            JsonVersioned jsonVersioned = beanDescription.getClassAnnotations().get(JsonVersioned.class);
+            if (jsonVersioned != null)
                 return createVersioningDeserializer(
                         (StdDeserializer) deserializer,
-                        jsonVersionedModel,
-                    VersionedModelUtils.getSerializeToVersionProperty(beanDescription)
+                        jsonVersioned,
+                        VersionedUtils.getVersionProperty(beanDescription)
                 );
         }
 

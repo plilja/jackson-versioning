@@ -23,24 +23,18 @@
  */
 package com.github.jonpeterson.jackson.module.versioning;
 
-import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.annotation.JacksonAnnotation;
 
-/**
- * Jackson module to load when using {@link JsonVersioned}.
- */
-public class VersioningModule extends SimpleModule {
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-    public <V extends Enum<V>> VersioningModule(Class<V> enumVersionClass) {
-        this(new EnumVersionsDescription<>(enumVersionClass), new ReflectionVersionedConverterFactory<V>());
-    }
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@JacksonAnnotation
+public @interface JsonVersioned {
 
-    public <V extends Comparable<V>> VersioningModule(VersionsDescription<V> versionsDescription) {
-        this(versionsDescription, new ReflectionVersionedConverterFactory<V>());
-    }
+    Class<? extends VersionConverter<?>> converterClass();
 
-    public <V extends Comparable<V>> VersioningModule(VersionsDescription<V> versionsDescription, VersionedConverterFactory<V> versionedConverterFactory) {
-        super("VersioningModule");
-        setDeserializerModifier(new VersionedBeanDeserializationModifier<V>(versionedConverterFactory, versionsDescription));
-        setSerializerModifier(new VersionedBeanSerializationModifier<V>(versionedConverterFactory, versionsDescription));
-    }
 }
