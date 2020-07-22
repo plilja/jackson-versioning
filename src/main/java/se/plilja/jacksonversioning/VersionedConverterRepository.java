@@ -21,20 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.github.jonpeterson.jackson.module.versioning;
+package se.plilja.jacksonversioning;
 
-import com.fasterxml.jackson.annotation.JacksonAnnotation;
-
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
-@Target({ElementType.TYPE})
-@Retention(RetentionPolicy.RUNTIME)
-@JacksonAnnotation
-public @interface JsonVersioned {
-
-    Class<? extends VersionConverter<?>> converterClass();
-
+public interface VersionedConverterRepository<V> {
+    VersionConverter<V> get(Class<? extends VersionConverter<V>> converterClass);
 }

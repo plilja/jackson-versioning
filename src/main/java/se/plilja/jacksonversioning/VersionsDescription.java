@@ -21,9 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.github.jonpeterson.jackson.module.versioning
+package se.plilja.jacksonversioning;
 
+/**
+ * Describes the set of available versions.
+ */
+public interface VersionsDescription<V extends Comparable<V>> {
+    V getCurrentVersion();
 
-enum Vs {
-    V1, V2, V3
+    V fromString(String value);
 }

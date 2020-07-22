@@ -21,22 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.github.jonpeterson.jackson.module.versioning
-
-import com.fasterxml.jackson.databind.node.ObjectNode
+package se.plilja.jacksonversioning
 
 
-class FixedVersionStrategy<V> implements VersionResolutionStrategy<V> {
-    V version;
-
-    @Override
-    V getSerializeToVersion(ObjectNode object) {
-        return version
-    }
-
-    @Override
-    V getDeserializeToVersion(ObjectNode object) {
-        return version
-    }
-
+enum Vs {
+    V1, V2, V3
 }

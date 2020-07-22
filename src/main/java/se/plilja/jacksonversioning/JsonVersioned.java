@@ -21,13 +21,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.github.jonpeterson.jackson.module.versioning;
+package se.plilja.jacksonversioning;
 
-/**
- * Describes the set of available versions.
- */
-public interface VersionsDescription<V extends Comparable<V>> {
-    V getCurrentVersion();
+import com.fasterxml.jackson.annotation.JacksonAnnotation;
 
-    V fromString(String value);
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@JacksonAnnotation
+public @interface JsonVersioned {
+
+    Class<? extends VersionConverter<?>> converterClass();
+
 }

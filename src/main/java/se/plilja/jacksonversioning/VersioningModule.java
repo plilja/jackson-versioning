@@ -21,30 +21,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.github.jonpeterson.jackson.module.versioning;
+package se.plilja.jacksonversioning;
 
-import java.lang.reflect.Constructor;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 
-class ReflectionVersionedConverterRepository<V> implements VersionedConverterRepository<V> {
-    private final Map<Class<? extends VersionConverter<V>>, VersionConverter<V>> cache = new ConcurrentHashMap<>();
+/**
+ * Jackson module to load when using {@link JsonVersioned}.
+ */
+public class VersioningModule extends SimpleModule {
 
-    @Override
-    public VersionConverter<V> get(Class<? extends VersionConverter<V>> converterClass) {
-        return cache.computeIfAbsent(converterClass, this::createWithReflection);
+    public <V extends Comparable<V>> VersioningModule(VersionsDescription<V> versionsDescription, VersionResolutionStrategy<V> versionResolutionStrategy) {
+        this(versionsDescription, new ReflectionVersionedConverterRepository<>(), versionResolutionStrategy);
     }
 
-    private VersionConverter<V> createWithReflection(Class<? extends VersionConverter<V>> converterClass) {
-        if (!converterClass.equals(VersionConverter.class)) {
-            try {
-                Constructor<? extends VersionConverter<V>> constructor = converterClass.getConstructor();
-                return constructor.newInstance();
-            } catch (Exception e) {
-                throw new RuntimeException("unable to create instance of converter '" + converterClass.getName() + "'", e);
-            }
-        } else {
-            return null;
-        }
+    public <V extends Comparable<V>> VersioningModule(VersionsDescription<V> versionsDescription, VersionedConverterRepository<V> versionedConverterRepository, VersionResolutionStrategy<V> versionResolutionStrategy) {
+        super("VersioningModule");
+        setDeserializerModifier(new VersionedBeanDeserializationModifier<>(versionedConverterRepository, versionsDescription, versionResolutionStrategy));
+        setSerializerModifier(new VersionedBeanSerializationModifier<>(versionedConverterRepository, versionsDescription, versionResolutionStrategy));
     }
 }

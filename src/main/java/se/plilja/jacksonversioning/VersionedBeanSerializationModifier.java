@@ -21,41 +21,48 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.github.jonpeterson.jackson.module.versioning;
+package se.plilja.jacksonversioning;
 
 import com.fasterxml.jackson.databind.BeanDescription;
-import com.fasterxml.jackson.databind.DeserializationConfig;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializationConfig;
+import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
-class VersionedBeanDeserializationModifier<V extends Comparable<V>> extends BeanDeserializerModifier {
+class VersionedBeanSerializationModifier<V extends Comparable<V>> extends BeanSerializerModifier {
 
     private final VersionedConverterRepository<V> versionedConverterRepository;
     private final VersionsDescription<V> versionsDescription;
     private final VersionResolutionStrategy<V> versionResolutionStrategy;
 
-    VersionedBeanDeserializationModifier(VersionedConverterRepository<V> versionedConverterRepository, VersionsDescription<V> versionsDescription, VersionResolutionStrategy<V> versionResolutionStrategy) {
+    VersionedBeanSerializationModifier(VersionedConverterRepository<V> versionedConverterRepository, VersionsDescription<V> versionsDescription, VersionResolutionStrategy<V> versionResolutionStrategy) {
         this.versionedConverterRepository = versionedConverterRepository;
         this.versionsDescription = versionsDescription;
         this.versionResolutionStrategy = versionResolutionStrategy;
     }
 
-    private <T> VersionedDeserializer<T, V> createVersioningDeserializer(StdDeserializer<T> deserializer, JsonVersioned jsonVersioned) {
-        return new VersionedDeserializer<>(deserializer, versionedConverterRepository, jsonVersioned, versionsDescription, versionResolutionStrategy);
+    private <T> VersionedSerializer<T, V> createVersionedSerializer(
+            StdSerializer<T> serializer,
+            JsonVersioned jsonVersioned) {
+        return new VersionedSerializer<>(
+                serializer,
+                versionedConverterRepository,
+                jsonVersioned,
+                versionsDescription,
+                versionResolutionStrategy);
     }
 
     @Override
-    public JsonDeserializer<?> modifyDeserializer(DeserializationConfig config, BeanDescription beanDescription, JsonDeserializer<?> deserializer) {
-        if (deserializer instanceof StdDeserializer) {
+    public JsonSerializer<?> modifySerializer(SerializationConfig config, BeanDescription beanDescription, JsonSerializer<?> serializer) {
+        if (serializer instanceof StdSerializer) {
             JsonVersioned jsonVersioned = beanDescription.getClassAnnotations().get(JsonVersioned.class);
             if (jsonVersioned != null)
-                return createVersioningDeserializer(
-                        (StdDeserializer) deserializer,
+                return createVersionedSerializer(
+                        (StdSerializer) serializer,
                         jsonVersioned
                 );
         }
 
-        return deserializer;
+        return serializer;
     }
 }

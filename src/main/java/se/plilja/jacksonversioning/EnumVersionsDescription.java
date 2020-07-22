@@ -21,22 +21,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.github.jonpeterson.jackson.module.versioning;
+package se.plilja.jacksonversioning;
 
-import com.fasterxml.jackson.databind.module.SimpleModule;
+public class EnumVersionsDescription<V extends Enum<V>> implements VersionsDescription<V> {
+    private final Class<V> enumClass;
+    private final V currentVersion;
 
-/**
- * Jackson module to load when using {@link JsonVersioned}.
- */
-public class VersioningModule extends SimpleModule {
-
-    public <V extends Comparable<V>> VersioningModule(VersionsDescription<V> versionsDescription, VersionResolutionStrategy<V> versionResolutionStrategy) {
-        this(versionsDescription, new ReflectionVersionedConverterRepository<>(), versionResolutionStrategy);
+    public EnumVersionsDescription(Class<V> enumClass) {
+        this.enumClass = enumClass;
+        currentVersion = enumClass.getEnumConstants()[enumClass.getEnumConstants().length - 1];
     }
 
-    public <V extends Comparable<V>> VersioningModule(VersionsDescription<V> versionsDescription, VersionedConverterRepository<V> versionedConverterRepository, VersionResolutionStrategy<V> versionResolutionStrategy) {
-        super("VersioningModule");
-        setDeserializerModifier(new VersionedBeanDeserializationModifier<>(versionedConverterRepository, versionsDescription, versionResolutionStrategy));
-        setSerializerModifier(new VersionedBeanSerializationModifier<>(versionedConverterRepository, versionsDescription, versionResolutionStrategy));
+    @Override
+    public V getCurrentVersion() {
+        return currentVersion;
+    }
+
+    @Override
+    public V fromString(String value) {
+        return V.valueOf(enumClass, value);
     }
 }

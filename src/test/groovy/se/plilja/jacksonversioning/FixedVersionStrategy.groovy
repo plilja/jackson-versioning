@@ -21,24 +21,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.github.jonpeterson.jackson.module.versioning;
+package se.plilja.jacksonversioning
 
-public class EnumVersionsDescription<V extends Enum<V>> implements VersionsDescription<V> {
-    private final Class<V> enumClass;
-    private final V currentVersion;
+import com.fasterxml.jackson.databind.node.ObjectNode
 
-    public EnumVersionsDescription(Class<V> enumClass) {
-        this.enumClass = enumClass;
-        currentVersion = enumClass.getEnumConstants()[enumClass.getEnumConstants().length - 1];
+
+class FixedVersionStrategy<V> implements VersionResolutionStrategy<V> {
+    V version;
+
+    @Override
+    V getSerializeToVersion(ObjectNode object) {
+        return version
     }
 
     @Override
-    public V getCurrentVersion() {
-        return currentVersion;
+    V getDeserializeToVersion(ObjectNode object) {
+        return version
     }
 
-    @Override
-    public V fromString(String value) {
-        return V.valueOf(enumClass, value);
-    }
 }

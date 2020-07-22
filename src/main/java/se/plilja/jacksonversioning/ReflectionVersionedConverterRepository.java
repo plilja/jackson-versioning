@@ -21,8 +21,30 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package com.github.jonpeterson.jackson.module.versioning;
+package se.plilja.jacksonversioning;
 
-public interface VersionedConverterRepository<V> {
-    VersionConverter<V> get(Class<? extends VersionConverter<V>> converterClass);
+import java.lang.reflect.Constructor;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+class ReflectionVersionedConverterRepository<V> implements VersionedConverterRepository<V> {
+    private final Map<Class<? extends VersionConverter<V>>, VersionConverter<V>> cache = new ConcurrentHashMap<>();
+
+    @Override
+    public VersionConverter<V> get(Class<? extends VersionConverter<V>> converterClass) {
+        return cache.computeIfAbsent(converterClass, this::createWithReflection);
+    }
+
+    private VersionConverter<V> createWithReflection(Class<? extends VersionConverter<V>> converterClass) {
+        if (!converterClass.equals(VersionConverter.class)) {
+            try {
+                Constructor<? extends VersionConverter<V>> constructor = converterClass.getConstructor();
+                return constructor.newInstance();
+            } catch (Exception e) {
+                throw new RuntimeException("unable to create instance of converter '" + converterClass.getName() + "'", e);
+            }
+        } else {
+            return null;
+        }
+    }
 }
