@@ -23,18 +23,10 @@
  */
 package com.github.jonpeterson.jackson.module.versioning;
 
-import com.fasterxml.jackson.annotation.JacksonAnnotation;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+public interface VersionResolutionStrategy<T> {
+    T getSerializeToVersion(ObjectNode object);
 
-/**
- * Tells target version when serializing a versioned class.
- */
-@Target({ElementType.FIELD, ElementType.METHOD})
-@Retention(RetentionPolicy.RUNTIME)
-@JacksonAnnotation
-public @interface JsonVersionToAttribute {
+    T getDeserializeToVersion(ObjectNode object);
 }

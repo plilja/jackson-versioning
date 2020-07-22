@@ -28,20 +28,21 @@ import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 
 class VersionedBeanDeserializationModifier<V extends Comparable<V>> extends BeanDeserializerModifier {
 
-    private final VersionedConverterFactory<V> versionedConverterFactory;
+    private final VersionedConverterRepository<V> versionedConverterRepository;
     private final VersionsDescription<V> versionsDescription;
+    private final VersionResolutionStrategy<V> versionResolutionStrategy;
 
-    VersionedBeanDeserializationModifier(VersionedConverterFactory<V> versionedConverterFactory, VersionsDescription<V> versionsDescription) {
-        this.versionedConverterFactory = versionedConverterFactory;
+    VersionedBeanDeserializationModifier(VersionedConverterRepository<V> versionedConverterRepository, VersionsDescription<V> versionsDescription, VersionResolutionStrategy<V> versionResolutionStrategy) {
+        this.versionedConverterRepository = versionedConverterRepository;
         this.versionsDescription = versionsDescription;
+        this.versionResolutionStrategy = versionResolutionStrategy;
     }
 
-    private <T> VersionedDeserializer<T, V> createVersioningDeserializer(StdDeserializer<T> deserializer, JsonVersioned jsonVersioned, BeanPropertyDefinition versionProperty) {
-        return new VersionedDeserializer<T, V>(deserializer, versionedConverterFactory, jsonVersioned, versionsDescription, versionProperty);
+    private <T> VersionedDeserializer<T, V> createVersioningDeserializer(StdDeserializer<T> deserializer, JsonVersioned jsonVersioned) {
+        return new VersionedDeserializer<>(deserializer, versionedConverterRepository, jsonVersioned, versionsDescription, versionResolutionStrategy);
     }
 
     @Override
@@ -51,8 +52,7 @@ class VersionedBeanDeserializationModifier<V extends Comparable<V>> extends Bean
             if (jsonVersioned != null)
                 return createVersioningDeserializer(
                         (StdDeserializer) deserializer,
-                        jsonVersioned,
-                        VersionedUtils.getVersionProperty(beanDescription)
+                        jsonVersioned
                 );
         }
 

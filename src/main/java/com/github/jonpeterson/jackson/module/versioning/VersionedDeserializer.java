@@ -29,7 +29,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.deser.ResolvableDeserializer;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TreeTraversingParser;
 
@@ -38,22 +37,22 @@ import java.io.IOException;
 class VersionedDeserializer<T, V extends Comparable<V>> extends StdDeserializer<T> implements ResolvableDeserializer {
     private final StdDeserializer<T> delegate;
     private final JsonVersioned jsonVersioned;
-    private final VersionedConverterFactory<V> versionedConverterFactory;
+    private final VersionedConverterRepository<V> versionedConverterRepository;
     private final VersionsDescription<V> versionsDescription;
-    private final BeanPropertyDefinition versionProperty;
+    private final VersionResolutionStrategy<V> versionResolutionStrategy;
 
     VersionedDeserializer(
             StdDeserializer<T> delegate,
-            VersionedConverterFactory<V> versionedConverterFactory,
+            VersionedConverterRepository<V> versionedConverterRepository,
             JsonVersioned jsonVersioned,
             VersionsDescription<V> versionsDescription,
-            BeanPropertyDefinition versionProperty) {
+            VersionResolutionStrategy<V> versionResolutionStrategy) {
         super(delegate.getValueType());
         this.delegate = delegate;
         this.jsonVersioned = jsonVersioned;
-        this.versionedConverterFactory = versionedConverterFactory;
+        this.versionedConverterRepository = versionedConverterRepository;
         this.versionsDescription = versionsDescription;
-        this.versionProperty = versionProperty;
+        this.versionResolutionStrategy = versionResolutionStrategy;
     }
 
     @Override
@@ -71,23 +70,17 @@ class VersionedDeserializer<T, V extends Comparable<V>> extends StdDeserializer<
 
         ObjectNode modelData = (ObjectNode) jsonNode;
 
-        JsonNode modelVersionNode = modelData.remove(versionProperty.getName());
-
-        V version = versionsDescription.fromString(modelVersionNode.asText());
+        V version = versionResolutionStrategy.getDeserializeToVersion(modelData);
 
         if (version == null) {
-            throw context.mappingException("'" + versionProperty.getName() + "' property was null and defaultDeserializeToVersion was not set");
+            version = versionsDescription.getCurrentVersion();
         }
 
         // convert the model if converter specified and model needs converting
-        VersionConverter<V> converter = versionedConverterFactory.create((Class) jsonVersioned.converterClass());
+        VersionConverter<V> converter = versionedConverterRepository.get((Class) jsonVersioned.converterClass());
         if (converter != null && version.compareTo(versionsDescription.getCurrentVersion()) < 0) {
             converter.convertUp(modelData, version, versionsDescription.getCurrentVersion(), context.getNodeFactory());
         }
-
-        // set the serializeToVersionProperty value to the source model version if the defaultToSource property is true
-//        if(serializeToVersionAnnotation != null && serializeToVersionAnnotation.defaultToSource())
-//            modelData.put(serializeToVersionProperty.getName(), modelVersion);
 
         JsonParser postInterceptionParser = new TreeTraversingParser(modelData, parser.getCodec());
         postInterceptionParser.nextToken();

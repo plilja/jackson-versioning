@@ -26,32 +26,30 @@ package com.github.jonpeterson.jackson.module.versioning;
 import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializationConfig;
-import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 
 class VersionedBeanSerializationModifier<V extends Comparable<V>> extends BeanSerializerModifier {
 
-    private final VersionedConverterFactory<V> versionedConverterFactory;
+    private final VersionedConverterRepository<V> versionedConverterRepository;
     private final VersionsDescription<V> versionsDescription;
+    private final VersionResolutionStrategy<V> versionResolutionStrategy;
 
-    VersionedBeanSerializationModifier(VersionedConverterFactory<V> versionedConverterFactory, VersionsDescription<V> versionsDescription) {
-        this.versionedConverterFactory = versionedConverterFactory;
+    VersionedBeanSerializationModifier(VersionedConverterRepository<V> versionedConverterRepository, VersionsDescription<V> versionsDescription, VersionResolutionStrategy<V> versionResolutionStrategy) {
+        this.versionedConverterRepository = versionedConverterRepository;
         this.versionsDescription = versionsDescription;
+        this.versionResolutionStrategy = versionResolutionStrategy;
     }
 
     private <T> VersionedSerializer<T, V> createVersionedSerializer(
             StdSerializer<T> serializer,
-            JsonVersioned jsonVersioned,
-            BeanPropertyDefinition versionProperty,
-            BeanPropertyDefinition serializeToVersionProperty) {
-        return new VersionedSerializer<T, V>(
+            JsonVersioned jsonVersioned) {
+        return new VersionedSerializer<>(
                 serializer,
-                versionedConverterFactory,
+                versionedConverterRepository,
                 jsonVersioned,
-                versionProperty,
-                serializeToVersionProperty,
-                versionsDescription);
+                versionsDescription,
+                versionResolutionStrategy);
     }
 
     @Override
@@ -61,9 +59,7 @@ class VersionedBeanSerializationModifier<V extends Comparable<V>> extends BeanSe
             if (jsonVersioned != null)
                 return createVersionedSerializer(
                         (StdSerializer) serializer,
-                        jsonVersioned,
-                        VersionedUtils.getVersionProperty(beanDescription),
-                        VersionedUtils.getSerializeToVersionProperty(beanDescription)
+                        jsonVersioned
                 );
         }
 

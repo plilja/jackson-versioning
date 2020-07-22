@@ -23,20 +23,6 @@
  */
 package com.github.jonpeterson.jackson.module.versioning;
 
-import com.fasterxml.jackson.databind.module.SimpleModule;
-
-/**
- * Jackson module to load when using {@link JsonVersioned}.
- */
-public class VersioningModule extends SimpleModule {
-
-    public <V extends Comparable<V>> VersioningModule(VersionsDescription<V> versionsDescription, VersionResolutionStrategy<V> versionResolutionStrategy) {
-        this(versionsDescription, new ReflectionVersionedConverterRepository<>(), versionResolutionStrategy);
-    }
-
-    public <V extends Comparable<V>> VersioningModule(VersionsDescription<V> versionsDescription, VersionedConverterRepository<V> versionedConverterRepository, VersionResolutionStrategy<V> versionResolutionStrategy) {
-        super("VersioningModule");
-        setDeserializerModifier(new VersionedBeanDeserializationModifier<>(versionedConverterRepository, versionsDescription, versionResolutionStrategy));
-        setSerializerModifier(new VersionedBeanSerializationModifier<>(versionedConverterRepository, versionsDescription, versionResolutionStrategy));
-    }
+public interface VersionedConverterRepository<V> {
+    VersionConverter<V> get(Class<? extends VersionConverter<V>> converterClass);
 }

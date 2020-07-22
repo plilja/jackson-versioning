@@ -26,8 +26,8 @@ package com.github.jonpeterson.jackson.module.versioning;
 /**
  * Describes the set of available versions.
  */
-public interface VersionsDescription<T extends Comparable<T>> {
-    T getCurrentVersion();
+public interface VersionsDescription<V extends Comparable<V>> {
+    V getCurrentVersion();
 
-    T fromString(String value);
+    V fromString(String value);
 }

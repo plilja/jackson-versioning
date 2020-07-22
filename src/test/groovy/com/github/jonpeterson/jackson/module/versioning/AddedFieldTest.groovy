@@ -30,10 +30,13 @@ import spock.lang.Unroll
 
 class AddedFieldTest extends Specification {
 
-    def mapper = new ObjectMapper().registerModule(new VersioningModule(Vs))
+    def mapper = createMapper()
+    def versionStrategy
 
-    enum Vs {
-        V1, V2, V3
+    def createMapper() {
+        versionStrategy = new FixedVersionStrategy<Vs>()
+        def versionsDescription = new EnumVersionsDescription<>(Vs.class)
+        return new ObjectMapper().registerModule(new VersioningModule(versionsDescription, versionStrategy))
     }
 
     @JsonVersioned(converterClass = CarConverter)
@@ -43,20 +46,12 @@ class AddedFieldTest extends Specification {
         int yearMade; // added version 2
         String registrationPlate; // added version 3
         Person owner
-        @JsonVersionAttribute
-        String _version
-        @JsonVersionToAttribute
-        String _toVersion
     }
 
     @JsonVersioned(converterClass = PersonConverter)
     static class Person {
         String firstName
         String lastName
-        @JsonVersionAttribute
-        String _version
-        @JsonVersionToAttribute
-        String _toVersion
         String socialSecurityNumber // added version 2
     }
 
@@ -78,9 +73,9 @@ class AddedFieldTest extends Specification {
     @Unroll
     def 'to past version'() {
         when:
-        def car = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","socialSecurityNumber":"1234567890","_version":"V3"},"registrationPlate":"ABC-123","yearMade":2020,"_version":"V3"}', Car)
-        car._toVersion = toVersion
-        car.owner._toVersion = toVersion
+        versionStrategy.setVersion(Vs.V3)
+        def car = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","socialSecurityNumber":"1234567890"},"registrationPlate":"ABC-123","yearMade":2020}', Car)
+        versionStrategy.setVersion(toVersion)
         def actual = mapper.readValue(mapper.writeValueAsString(car), Map)
 
         then:
@@ -88,15 +83,17 @@ class AddedFieldTest extends Specification {
 
         where:
         toVersion | expected
-        Vs.V1     | [_version: 'V1', make: 'toyota', model: 'camry', 'owner': [_version: 'V1', firstName: 'Per', 'lastName': 'Persson']]
-        Vs.V2     | [_version: 'V2', make: 'toyota', model: 'camry', 'yearMade': 2020, 'owner': [_version: 'V2', firstName: 'Per', 'lastName': 'Persson', 'socialSecurityNumber': '1234567890']]
-        Vs.V3     | [_version: 'V3', make: 'toyota', model: 'camry', 'yearMade': 2020, 'registrationPlate': 'ABC-123', 'owner': [_version: 'V3', firstName: 'Per', 'lastName': 'Persson', 'socialSecurityNumber': '1234567890']]
+        Vs.V1     | [make: 'toyota', model: 'camry', 'owner': [firstName: 'Per', 'lastName': 'Persson']]
+        Vs.V2     | [make: 'toyota', model: 'camry', 'yearMade': 2020, 'owner': [firstName: 'Per', 'lastName': 'Persson', 'socialSecurityNumber': '1234567890']]
+        Vs.V3     | [make: 'toyota', model: 'camry', 'yearMade': 2020, 'registrationPlate': 'ABC-123', 'owner': [firstName: 'Per', 'lastName': 'Persson', 'socialSecurityNumber': '1234567890']]
     }
 
     def 'to current version'() {
         when:
-        def carV1 = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","_version":"V1"},"_version":"V1"}', Car)
-        def carV3 = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","socialSecurityNumber":"1234567890","_version":"V3"},"registrationPlate":"ABC-123","yearMade":2020,"_version":"V3"}', Car)
+        versionStrategy.setVersion(Vs.V1)
+        def carV1 = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson"}}', Car)
+        versionStrategy.setVersion(Vs.V3)
+        def carV3 = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","socialSecurityNumber":"1234567890"},"registrationPlate":"ABC-123","yearMade":2020}', Car)
         def actual = mapper.readValue(mapper.writeValueAsString(carV1), Map)
         def expected = mapper.readValue(mapper.writeValueAsString(carV3), Map)
 
