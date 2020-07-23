@@ -38,6 +38,10 @@ public class EnumVersionsDescription<V extends Enum<V>> implements VersionsDescr
 
     @Override
     public V fromString(String value) {
-        return V.valueOf(enumClass, value);
+        try {
+            return V.valueOf(enumClass, value);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }
