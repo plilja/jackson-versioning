@@ -1,23 +1,24 @@
-# Jackson Model Versioning Module
+# Jackson Versioning Module
 Jackson 2.x module for handling versioning of models.
 
 ## The Problem
 Let's say we create an API that accepts the following car data JSON:
 ```json
 {
-  "model": "honda:civic",
+  "model": "civic",
   "year": 2016,
-  "new": "true"
+  "new": true
 }
 ```
 
-Later, we decide that `model` should be split into two fields (`make` and `model`).
+Later, we decide to add the `make` attribute. But we don't want to make the new attribute nullable as every car should have a make.
+
 ```json
 {
   "make": "honda",
   "model": "civic",
   "year": 2016,
-  "new": "true"
+  "new": true
 }
 ```
 
@@ -31,9 +32,23 @@ Then we decide that `new` should be actually be retyped and renamed (boolean `us
 }
 ```
 
-By this point, we have three formats of data that clients might be sending to or requesting from our API. Hopefully we had the foresight to implement versioning on the models or API call's parameters.
+By this point, we have three formats of the Car model that clients might be sending to 
+or requesting from our API. 
 
-There are at least a few ways to handle versioning of data for on an API. A decently clean way is to create new classes for each version of the model and use API parameters (ex. HTTP URL or headers) to specify the version of the data. Then write some custom logic to inform the framework of which class that version of the data should bind to.
+This isn't a new problem, a common solution is to create new classes each time a breaking
+change needs to occur. Then manually implement the old versions to convert to the newer 
+model version and relay the call to the new endpoint. Then convert the response back 
+to the old format.
+
+This works well if braking changes are rare. But if you make changes like this often 
+this will get out of hand. Generally you don't want to be in a spot where it's 
+expensive to make changes.
+
+Another problematic scenario is if your model classes are nested (maybe you have a 
+CarManufacturer that holds a lists of Cars).  
+
+These are problems that this project attempts to solve.
+
 ```
 POST /api/car/v1/     <-  CarV1
 GET  /api/car/v1/     ->  List<CarV1>
@@ -45,179 +60,94 @@ GET  /api/car/v2/{id} ->  CarV2
 ...
 ```
 
-But what if there was a way that only required a single model class that could be annotated to control conversion between versionsDescription of the raw data before deserialization and after serialization? That is what this Jackson module provides.
-
-## Diagram
-![Diagram](images/diagram.png)
-
 ## Examples
-*Note: All examples are using Groovy for brevity, but it is not required.*
 
 #### Basic Usage
-**Create a model for the newest version of the data in the example above. Annotate the model with the current version and specify what converter class to use when deserializing from a potentially old version of the model to the current version.**
-```groovy
-@JsonVersionedModel(currentVersion = '3', toCurrentConverterClass = ToCurrentCarConverter)
-class Car {
-    String make
-    String model
-    int year
-    boolean used
+
+**Declare your versions. The simplest way is to use an Enum.**
+
+```java
+public enum ApiVersion {
+    V1, V2, V3;
 }
 ```
 
-**Create the "up" converter and provide logic for how old versions should be converted to the current version.**
-```groovy
-class ToCurrentCarConverter implements VersionedModelConverter {
-    @Override
-    def ObjectNode convert(ObjectNode modelData, String modelVersion,
-                           String targetModelVersion, JsonNodeFactory nodeFactory) {
+**Create a model for the newest version of the data in the example above. Annotate the 
+model as versioned and specify which class to use for conversions.
 
-        // model version is an int
-        def version = modelVersion as int
+```java
+@JsonVersioned(converterClass = CarConverter.class)
+public class Car {
+    private String make;
+    private String model;
+    private int year;
+    private boolean used;
+    private ApiVersion version; // Holds the api version
 
-        // version 1 had a single 'model' field that combined 'make' and 'model' with a colon delimiter
-        if(version <= 1) {
-            def makeAndModel = modelData.get('model').asText().split(':')
-            modelData.put('make', makeAndModel[0])
-            modelData.put('model', makeAndModel[1])
-        }
+    // getters and setters left out for brevity...
+}
+```
 
-        // version 1-2 had a 'new' text field instead of a boolean 'used' field
-        if(version <= 2)
-            modelData.put('used', !Boolean.parseBoolean(modelData.remove('new').asText()))
+**Create the converter class. The simplest way is to extends the AbstractVersionConverter base class.**
+```java
+public class CarConverter extends AbstractVersionConverter<ApiVersion> {
+    public CarConverter() {
+        super(Car.class);
+        attributeAdded(ApiVersion.V1, ApiVersion.V2, "make", (data) -> {
+            JsonNode model = data.get("model");
+            return new CarService().getMakeFromModel(model.asText());
+        });
+        attributeModified(ApiVersion.V2, ApiVersion.V3, "new", (data, field) -> !field.asBoolean(), (data, field) -> !field.asBoolean());
+        attributeRenamed(ApiVersion.V2, ApiVersion.V3, "new", "used");
     }
 }
 ```
 
-**All that's left is to configure the Jackson ObjectMapper with the module and test it out.**
-```groovy
-def mapper = new ObjectMapper().registerModule(new VersioningModule())
+**Determine how versions are resolved. This can for example be a request parameter or an attribute on the model class.**
 
-// version 1 JSON -> POJO
-def hondaCivic = mapper.readValue(
-    '{"model": "honda:civic", "year": 2016, "new": "true", "modelVersion": "1"}',
-    Car
-)
+```java
+public class AttributeVersionResolutionStrategy implements VersionResolutionStrategy<ApiVersion> {
+    public ApiVersion getSerializeToVersion(ObjectNode object) {
+        return ApiVersion.valueOf(object.get("version").asText());
+    }
 
-// POJO -> version 3 JSON
-println mapper.writeValueAsString(hondaCivic)
-// prints '{"make": "honda", "model": "civic", "year": 2016, "used": false, "modelVersion": "3"}'
-```
-
-### Serializing To A Specific Version
-**Modify the model in the prvious example to also specify what converter class to use when serializing from the current version to a potentially old version of the model. Also add a field (can be a method) that returns the version that the model to be serialized to.**
-```groovy
-@JsonVersionedModel(currentVersion = '3',
-                    toCurrentConverterClass = ToCurrentCarConverter,
-                    toPastConverterClass = ToPastCarConverter)
-class Car {
-    String make
-    String model
-    int year
-    boolean used
-
-    @JsonSerializeToVersion
-    String serializeToVersion
-}
-```
-
-**Create the "down" converter and provide logic for how the current version should be converted to an old version.**
-```groovy
-class ToPastCarConverter implements VersionedModelConverter {
-
-    @Override
-    def ObjectNode convert(ObjectNode modelData, String modelVersion,
-                           String targetModelVersion, JsonNodeFactory nodeFactory) {
-
-        // model version is an int
-        def version = modelVersion as int
-        def targetVersion = targetModelVersion as int
-
-        // version 1 had a single 'model' field that combined 'make' and 'model' with a colon delimiter
-        if(targetVersion <= 1 && version > 1)
-            modelData.put('model', "${modelData.remove('make').asText()}:${modelData.get('model').asText()}")
-
-        // version 1-2 had a 'new' text field instead of a boolean 'used' field
-        if(targetVersion <= 2 && version > 2)
-            modelData.put('new', !modelData.remove('used').asBoolean() as String)
+    public ApiVersion getDeserializeToVersion(ObjectNode object) {
+        return ApiVersion.valueOf(object.get("version").asText());
     }
 }
 ```
 
-**Make a slight modification to the test code from the previous example to set the serializeToVersion field.**
-```groovy
-def mapper = new ObjectMapper().registerModule(new VersioningModule())
+**Configure the Jackson ObjectMapper with the module and test it out.**
+```java
+class ExampleProgram {
+    public static void main(String[] args) throws Exception {
+        ObjectMapper mapper = new ObjectMapper().registerModule(new VersioningModule(new EnumVersionsDescription<>(ApiVersion.class), new AttributeVersionResolutionStrategy()));
 
-// version 1 JSON -> POJO
-def hondaCivic = mapper.readValue(
-    '{"model": "honda:civic", "year": 2016, "new": "true", "modelVersion": "1"}',
-    Car
-)
+        // version 1 JSON -> POJO current version
+        Car hondaCivic = mapper.readValue(
+                "{\"model\":\"civic\",\"year\":2016,\"version\":\"V1\",\"new\":true}",
+                Car.class
+        );
 
-// set the new serializeToVersion field to '2'
-hondaCivic.serializeToVersion = '2'
+        // POJO current version -> version 1 JSON
+        System.out.println(mapper.writeValueAsString(hondaCivic));
+        // prints '{"model":"civic","year":2016,"version":"V1","new":true}'
 
-// POJO -> version 2 JSON
-println mapper.writeValueAsString(hondaCivic)
-// prints '{"make": "honda", "model": "civic", "year": 2016, "new": "true", "modelVersion": "2"}'
-```
-
-### Serializing to the Source Model's Version
-**Using the `defaultToSource` flag on `@JsonSerializeToVersion` will set the specified serializeToVersion property to the original model's version. This is useful when wanting to deserialize a model and reserialize in the same version format.**
-```groovy
-@JsonVersionedModel(currentVersion = '3',
-                    toCurrentConverterClass = ToCurrentCarConverter,
-                    toPastConverterClass = ToPastCarConverter)
-class Car {
-    String make
-    String model
-    int year
-    boolean used
-
-    @JsonSerializeToVersion(defaultToSource = true)
-    String serializeToVersion
+        hondaCivic.setVersion(ApiVersion.V3);
+        System.out.println(mapper.writeValueAsString(hondaCivic));
+        // prints '{"make":"Honda","model":"civic","year":2016,"used":false,"version":"V3"}'
+    }
 }
 ```
-
-**Running the same test code from above now yields a different result where the serialized output model's version matches the deserialized input model's version:**
-```groovy
-def mapper = new ObjectMapper().registerModule(new VersioningModule())
-
-// version 1 JSON -> POJO
-def hondaCivic = mapper.readValue(
-    '{"model": "honda:civic", "year": 2016, "new": "true", "modelVersion": "1"}',
-    Car
-)
-
-// POJO -> version 1 JSON
-println mapper.writeValueAsString(hondaCivic)
-// prints '{"model": "honda:civic", "year": 2016, "new": "true", "modelVersion": "1"}'
-```
-
-
-### More Examples
-See the tests under `src/test/groovy` for more.
 
 ## Compatibility
-* Requires Java 6 or higher
-* Requires Jackson 2.2 or higher (tested with Jackson 2.2 - 2.8).
+* Requires Java 8 or higher
+* Requires Jackson 2.2 or higher
 
-## Getting Started with Gradle
-```groovy
-dependencies {
-    compile 'com.github.jonpeterson:jackson-module-model-versioning:1.2.2'
-}
-```
+## Also check out
 
-## Getting Started with Maven
-```xml
-<dependency>
-    <groupId>com.github.jonpeterson</groupId>
-    <artifactId>jackson-module-model-versioning</artifactId>
-    <version>1.2.2</version>
-</dependency>
-```
+This project is originally forked: 
+* [jackson-module-model-versioning](https://github.com/jonpeterson/jackson-module-model-versioning)
 
-## [JavaDoc](https://jonpeterson.github.io/docs/jackson-module-model-versioning/1.2.2/index.html)
-
-## [Changelog](CHANGELOG.md)
+For Spring bindings please check out:
+* [jackson-versioning-spring](https://github.com/plilja/jackson-versioning-spring)
