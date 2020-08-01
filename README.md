@@ -2,7 +2,7 @@
 Jackson 2.x module for handling versioning of models.
 
 ## The Problem
-Let's say we create an API that accepts the following car data JSON:
+Let's say we create an API that accepts the following Car data JSON:
 ```json
 {
   "model": "civic",
@@ -22,7 +22,7 @@ Later, we decide to add the `make` attribute. But we don't want to make the new 
 }
 ```
 
-Then we decide that `new` should be actually be retyped and renamed (boolean `used`).
+Then we decide that `new` should be actually be renamed to `used` and inverted.
 ```json
 {
   "make": "honda",
@@ -36,16 +36,15 @@ By this point, we have three formats of the Car model that clients might be send
 or requesting from our API. 
 
 This isn't a new problem, a common solution is to create new classes each time a breaking
-change needs to occur. Then manually implement the old versions to convert to the newer 
-model version and relay the call to the new endpoint. Then convert the response back 
-to the old format.
+change needs to occur. Then manually in the controller implement the conversion between new
+and old data formats. 
 
-This works well if braking changes are rare. But if you make changes like this often 
-this will get out of hand. Generally you don't want to be in a spot where it's 
+This works well if breaking changes are rare. But if you make changes like this often 
+this will quickly get out of hand. Generally you don't want to be in a spot where it's 
 expensive to make changes.
 
 Another problematic scenario is if your model classes are nested (maybe you have a 
-CarManufacturer that holds a lists of Cars).  
+CarManufacturer class that holds a lists of Cars).  
 
 These are problems that this project attempts to solve.
 
@@ -73,7 +72,7 @@ public enum ApiVersion {
 ```
 
 **Create a model for the newest version of the data in the example above. Annotate the 
-model as versioned and specify which class to use for conversions.
+model as versioned and specify which class to use for conversions.**
 
 ```java
 @JsonVersioned(converterClass = CarConverter.class)
