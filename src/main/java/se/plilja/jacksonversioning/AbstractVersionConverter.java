@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -37,8 +38,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public abstract class AbstractVersionConverter<V extends Comparable<V>> implements VersionConverter<V> {
-    private final SortedMap<V, List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>>> upConverters = new TreeMap<>();
-    private final SortedMap<V, List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>>> downConverters = new TreeMap<>((o1, o2) -> -o1.compareTo(o2));
+    private final SortedMap<V, LinkedList<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>>> upConverters = new TreeMap<>();
+    private final SortedMap<V, LinkedList<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>>> downConverters = new TreeMap<>((o1, o2) -> -o1.compareTo(o2));
     private final Class<?> targetClass;
     private final List<String> descriptions = new ArrayList<>();
 
@@ -52,8 +53,8 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
             BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> downConverter,
             BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> upConverter,
             String description) {
-        upConverters.computeIfAbsent(downVersion, (key) -> new ArrayList<>()).add(upConverter);
-        downConverters.computeIfAbsent(upVersion, (key) -> new ArrayList<>()).add(downConverter);
+        upConverters.computeIfAbsent(downVersion, (key) -> new LinkedList<>()).add(upConverter);
+        downConverters.computeIfAbsent(upVersion, (key) -> new LinkedList<>()).addFirst(downConverter);
         descriptions.add(description);
     }
 
@@ -109,17 +110,17 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
         );
     }
 
-    protected void attributeModified(V downModelVersion, V upModelVersion, String attributeName, Function<JsonNode, Object> valueDownModifier, Function<JsonNode, Object> valueUpModifier) {
+    protected void attributeModified(V downModelVersion, V upModelVersion, String attributeName, BiFunction<ObjectNode, JsonNode, Object> valueDownModifier, BiFunction<ObjectNode, JsonNode, Object> valueUpModifier) {
         addConverter(
                 downModelVersion,
                 upModelVersion,
                 setFromValue(attributeName, (modelData) -> {
                     JsonNode jsonNode = modelData.get(attributeName);
-                    return valueDownModifier.apply(jsonNode);
+                    return valueDownModifier.apply(modelData, jsonNode);
                 }),
                 setFromValue(attributeName, (modelData) -> {
                     JsonNode jsonNode = modelData.get(attributeName);
-                    return valueUpModifier.apply(jsonNode);
+                    return valueUpModifier.apply(modelData, jsonNode);
                 }),
                 String.format("Attribute %s was removed from class %s", attributeName, targetClass.getSimpleName())
         );
@@ -179,6 +180,7 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
         );
     }
 
+    // TODO use for something or remove !!!
     public List<String> describe() {
         return Collections.unmodifiableList(descriptions);
     }
