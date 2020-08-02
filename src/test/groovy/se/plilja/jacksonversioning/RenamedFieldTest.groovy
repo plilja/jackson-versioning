@@ -53,20 +53,20 @@ class RenamedFieldTest extends Specification {
     static class CarConverter extends AbstractVersionConverter<Vs> {
         CarConverter() {
             super(Car.class)
-            attributeRenamed(Vs.V1, Vs.V2, "makeV1", "makeV2")
-            attributeRenamed(Vs.V2, Vs.V3, "makeV2", "makeV3")
-            attributeRenamed(Vs.V1, Vs.V2, "ownerV1", "ownerV2")
-            attributeRenamed(Vs.V2, Vs.V3, "ownerV2", "ownerV3")
+            attributeRenamed(Vs.V2, "makeV1", "makeV2")
+            attributeRenamed(Vs.V3, "makeV2", "makeV3")
+            attributeRenamed(Vs.V2, "ownerV1", "ownerV2")
+            attributeRenamed(Vs.V3, "ownerV2", "ownerV3")
         }
     }
 
     static class PersonConverter extends AbstractVersionConverter<Vs> {
         PersonConverter() {
             super(Person.class)
-            attributeRenamed(Vs.V1, Vs.V2, "firstNameV1", "firstNameV2")
-            attributeRenamed(Vs.V2, Vs.V3, "firstNameV2", "firstNameV3")
-            attributeRenamed(Vs.V1, Vs.V2, "lastNameV1", "lastNameV2")
-            attributeRenamed(Vs.V2, Vs.V3, "lastNameV2", "lastNameV3")
+            attributeRenamed(Vs.V2, "firstNameV1", "firstNameV2")
+            attributeRenamed(Vs.V3, "firstNameV2", "firstNameV3")
+            attributeRenamed(Vs.V2, "lastNameV1", "lastNameV2")
+            attributeRenamed(Vs.V3, "lastNameV2", "lastNameV3")
         }
     }
 

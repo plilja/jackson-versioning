@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.BiFunction;
@@ -48,19 +49,17 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
     }
 
     private void addConverter(
-            V downVersion,
             V upVersion,
             BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> downConverter,
             BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> upConverter,
             String description) {
-        upConverters.computeIfAbsent(downVersion, (key) -> new LinkedList<>()).add(upConverter);
+        upConverters.computeIfAbsent(upVersion, (key) -> new LinkedList<>()).add(upConverter);
         downConverters.computeIfAbsent(upVersion, (key) -> new LinkedList<>()).addFirst(downConverter);
         descriptions.add(description);
     }
 
-    protected void attributeAdded(V downModelVersion, V upModelVersion, String attributeName, Function<ObjectNode, Object> valueProvider) {
+    protected void attributeAdded(V upModelVersion, String attributeName, Function<ObjectNode, Object> valueProvider) {
         addConverter(
-                downModelVersion,
                 upModelVersion,
                 (modelData, nodeFactory) -> {
                     modelData.remove(attributeName);
@@ -71,9 +70,8 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
         );
     }
 
-    protected void attributeRemoved(V downModelVersion, V upModelVersion, String attributeName, Function<ObjectNode, Object> valueProvider) {
+    protected void attributeRemoved(V upModelVersion, String attributeName, Function<ObjectNode, Object> valueProvider) {
         addConverter(
-                downModelVersion,
                 upModelVersion,
                 setFromValue(attributeName, valueProvider),
                 (modelData, nodeFactory) -> {
@@ -84,9 +82,8 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
         );
     }
 
-    protected void attributeModified(V downModelVersion, V upModelVersion, String attributeName, BiFunction<ObjectNode, JsonNode, Object> valueDownModifier, BiFunction<ObjectNode, JsonNode, Object> valueUpModifier) {
+    protected void attributeModified(V upModelVersion, String attributeName, BiFunction<ObjectNode, JsonNode, Object> valueDownModifier, BiFunction<ObjectNode, JsonNode, Object> valueUpModifier) {
         addConverter(
-                downModelVersion,
                 upModelVersion,
                 setFromValue(attributeName, (modelData) -> {
                     JsonNode jsonNode = modelData.get(attributeName);
@@ -134,9 +131,8 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
         };
     }
 
-    protected void attributeRenamed(V downModelVersion, V upModelVersion, String oldAttributeName, String newAttributeName) {
+    protected void attributeRenamed(V upModelVersion, String oldAttributeName, String newAttributeName) {
         addConverter(
-                downModelVersion,
                 upModelVersion,
                 (modelData, nodeFactory) -> {
                     JsonNode jsonNode = modelData.get(newAttributeName);
@@ -170,8 +166,14 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
 
     @Override
     public void convertUp(ObjectNode modelData, V fromVersion, V toVersion, JsonNodeFactory nodeFactory) {
-        for (List<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>> converters : upConverters.subMap(fromVersion, toVersion).values()) {
-            for (BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> converter : converters) {
+        for (Map.Entry<V, LinkedList<BiFunction<ObjectNode, JsonNodeFactory, ObjectNode>>> entry : upConverters.tailMap(fromVersion).entrySet()) {
+            if (entry.getKey() == fromVersion) {
+                continue;
+            }
+            if (entry.getKey().compareTo(toVersion) > 0) {
+                break;
+            }
+            for (BiFunction<ObjectNode, JsonNodeFactory, ObjectNode> converter : entry.getValue()) {
                 converter.apply(modelData, nodeFactory);
             }
         }

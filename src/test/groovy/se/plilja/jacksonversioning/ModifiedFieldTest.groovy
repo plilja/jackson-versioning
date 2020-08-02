@@ -54,18 +54,18 @@ class ModifiedFieldTest extends Specification {
     static class CarConverter extends AbstractVersionConverter<Vs> {
         CarConverter() {
             super(Car.class)
-            attributeRenamed(Vs.V1, Vs.V2, "new", "used")
-            attributeModified(Vs.V1, Vs.V2, "used", { data, attribute -> !attribute.asBoolean() }, { data, attribute -> !attribute.asBoolean() })
+            attributeRenamed(Vs.V2, "new", "used")
+            attributeModified(Vs.V2, "used", { data, attribute -> !attribute.asBoolean() }, { data, attribute -> !attribute.asBoolean() })
         }
     }
 
     static class PersonConverter extends AbstractVersionConverter<Vs> {
         PersonConverter() {
             super(Person.class)
-            attributeAdded(Vs.V2, Vs.V3, "lastName", { data ->
+            attributeAdded(Vs.V3, "lastName", { data ->
                 return data.get("name").asText().split(" ")[1]
             })
-            attributeModified(Vs.V2, Vs.V3, "name",
+            attributeModified(Vs.V3, "name",
                     { data, attribute ->
                         def lastName = data.get("lastName").asText()
                         return attribute.asText() + " " + lastName
@@ -74,7 +74,7 @@ class ModifiedFieldTest extends Specification {
                         return data.get("name").asText().split(" ")[0]
                     }
             );
-            attributeRenamed(Vs.V2, Vs.V3, "name", "firstName")
+            attributeRenamed(Vs.V3, "name", "firstName")
         }
     }
 
