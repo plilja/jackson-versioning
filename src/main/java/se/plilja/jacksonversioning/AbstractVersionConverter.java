@@ -58,19 +58,6 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
         descriptions.add(description);
     }
 
-    protected void attributeAdded(V downModelVersion, V upModelVersion, String attributeName, Object defaultValue) {
-        addConverter(
-                downModelVersion,
-                upModelVersion,
-                (modelData, nodeFactory) -> {
-                    modelData.remove(attributeName);
-                    return modelData;
-                },
-                setFromValue(attributeName, (ignored) -> defaultValue),
-                String.format("Attribute %s was added to class %s", attributeName, targetClass.getSimpleName())
-        );
-    }
-
     protected void attributeAdded(V downModelVersion, V upModelVersion, String attributeName, Function<ObjectNode, Object> valueProvider) {
         addConverter(
                 downModelVersion,
@@ -81,19 +68,6 @@ public abstract class AbstractVersionConverter<V extends Comparable<V>> implemen
                 },
                 setFromValue(attributeName, valueProvider),
                 String.format("Attribute %s was added to class %s", attributeName, targetClass.getSimpleName())
-        );
-    }
-
-    protected void attributeRemoved(V downModelVersion, V upModelVersion, String attributeName, Object defaultValue) {
-        addConverter(
-                downModelVersion,
-                upModelVersion,
-                setFromValue(attributeName, (ignored) -> defaultValue),
-                (modelData, nodeFactory) -> {
-                    modelData.remove(attributeName);
-                    return modelData;
-                },
-                String.format("Attribute %s was removed from class %s", attributeName, targetClass.getSimpleName())
         );
     }
 

@@ -56,15 +56,15 @@ class RemovedFieldTest extends Specification {
     static class CarConverter extends AbstractVersionConverter<Vs> {
         CarConverter() {
             super(Car.class)
-            attributeRemoved(Vs.V1, Vs.V2, "yearMade", 2020)
-            attributeRemoved(Vs.V2, Vs.V3, "registrationPlate", "ABC-123")
+            attributeRemoved(Vs.V1, Vs.V2, "yearMade", { data -> 2020 })
+            attributeRemoved(Vs.V2, Vs.V3, "registrationPlate", { data -> "ABC-123" })
         }
     }
 
     static class PersonConverter extends AbstractVersionConverter<Vs> {
         PersonConverter() {
             super(Person.class)
-            attributeRemoved(Vs.V1, Vs.V2, "socialSecurityNumber", "1234567890")
+            attributeRemoved(Vs.V1, Vs.V2, "socialSecurityNumber", { data -> "1234567890" })
         }
     }
 

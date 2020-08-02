@@ -26,14 +26,13 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import spock.lang.Specification
 import spock.lang.Unroll
 
-
-class AddedFieldTest extends Specification {
+class ModifiedFieldTest extends Specification {
 
     def mapper = createMapper()
     def versionStrategy
 
     def createMapper() {
-        versionStrategy = new FixedVersionStrategy<Vs>()
+        versionStrategy = new FixedVersionStrategy<Vs>();
         def versionsDescription = new EnumVersionsDescription<>(Vs.class)
         return new ObjectMapper().registerModule(new VersioningModule(versionsDescription, versionStrategy))
     }
@@ -42,30 +41,40 @@ class AddedFieldTest extends Specification {
     static class Car {
         String model
         String make
-        int yearMade; // added version 2
-        String registrationPlate; // added version 3
+        Boolean used // Changed from !new version 2
         Person owner
     }
 
     @JsonVersioned(converterClass = PersonConverter)
     static class Person {
-        String firstName
+        String firstName // Split from name = firstName + " " + lastName version 3
         String lastName
-        String socialSecurityNumber // added version 2
     }
 
     static class CarConverter extends AbstractVersionConverter<Vs> {
         CarConverter() {
             super(Car.class)
-            attributeAdded(Vs.V1, Vs.V2, "yearMade", { data -> 2020 })
-            attributeAdded(Vs.V2, Vs.V3, "registrationPlate", { data -> "ABC-123" })
+            attributeRenamed(Vs.V1, Vs.V2, "new", "used")
+            attributeModified(Vs.V1, Vs.V2, "used", { data, attribute -> !attribute.asBoolean() }, { data, attribute -> !attribute.asBoolean() })
         }
     }
 
     static class PersonConverter extends AbstractVersionConverter<Vs> {
         PersonConverter() {
             super(Person.class)
-            attributeAdded(Vs.V1, Vs.V2, "socialSecurityNumber", { data -> "1234567890" })
+            attributeAdded(Vs.V2, Vs.V3, "lastName", { data ->
+                return data.get("name").asText().split(" ")[1]
+            })
+            attributeModified(Vs.V2, Vs.V3, "name",
+                    { data, attribute ->
+                        def lastName = data.get("lastName").asText()
+                        return attribute.asText() + " " + lastName
+                    },
+                    { data, attribute ->
+                        return data.get("name").asText().split(" ")[0]
+                    }
+            );
+            attributeRenamed(Vs.V2, Vs.V3, "name", "firstName")
         }
     }
 
@@ -73,7 +82,7 @@ class AddedFieldTest extends Specification {
     def 'to past version'() {
         when:
         versionStrategy.setVersion(Vs.V3)
-        def car = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","socialSecurityNumber":"1234567890"},"registrationPlate":"ABC-123","yearMade":2020}', Car)
+        def car = mapper.readValue('{"model":"camry","make":"toyota","used":true,"owner":{"firstName":"Per","lastName":"Persson"}}', Car)
         versionStrategy.setVersion(toVersion)
         def actual = mapper.readValue(mapper.writeValueAsString(car), Map)
 
@@ -82,17 +91,17 @@ class AddedFieldTest extends Specification {
 
         where:
         toVersion | expected
-        Vs.V1     | [make: 'toyota', model: 'camry', 'owner': [firstName: 'Per', 'lastName': 'Persson']]
-        Vs.V2     | [make: 'toyota', model: 'camry', 'yearMade': 2020, 'owner': [firstName: 'Per', 'lastName': 'Persson', 'socialSecurityNumber': '1234567890']]
-        Vs.V3     | [make: 'toyota', model: 'camry', 'yearMade': 2020, 'registrationPlate': 'ABC-123', 'owner': [firstName: 'Per', 'lastName': 'Persson', 'socialSecurityNumber': '1234567890']]
+        Vs.V1     | [make: 'toyota', model: 'camry', new: false, 'owner': [name: 'Per Persson']]
+        Vs.V2     | [make: 'toyota', model: 'camry', used: true, 'owner': [name: 'Per Persson']]
+        Vs.V3     | [make: 'toyota', model: 'camry', used: true, 'owner': [firstName: 'Per', 'lastName': 'Persson']]
     }
 
     def 'to current version'() {
         when:
         versionStrategy.setVersion(Vs.V1)
-        def carV1 = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson"}}', Car)
+        def carV1 = mapper.readValue('{"model":"camry","make":"toyota","new":true,"owner":{"name":"Per Persson"}}', Car)
         versionStrategy.setVersion(Vs.V3)
-        def carV3 = mapper.readValue('{"model":"camry","make":"toyota","owner":{"firstName":"Per","lastName":"Persson","socialSecurityNumber":"1234567890"},"registrationPlate":"ABC-123","yearMade":2020}', Car)
+        def carV3 = mapper.readValue('{"model":"camry","make":"toyota","used":false,"owner":{"firstName":"Per","lastName":"Persson"}}', Car)
         def actual = mapper.readValue(mapper.writeValueAsString(carV1), Map)
         def expected = mapper.readValue(mapper.writeValueAsString(carV3), Map)
 
