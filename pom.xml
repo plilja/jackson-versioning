@@ -47,8 +47,8 @@
         <connection>scm:git:git@github.com:plilja/jackson-versioning.git</connection>
         <url>https://github.com/plilja/jackson-versioning</url>
         <developerConnection>scm:git:git@github.com:plilja/jackson-versioning.git</developerConnection>
-      <tag>HEAD</tag>
-  </scm>
+        <tag>HEAD</tag>
+    </scm>
 
     <build>
         <plugins>
