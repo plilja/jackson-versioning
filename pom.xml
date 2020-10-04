@@ -38,6 +38,20 @@
         <module>jackson-versioning-spring</module>
     </modules>
 
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <java.version>11</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <scm>
+        <connection>scm:git:git@github.com:plilja/jackson-versioning.git</connection>
+        <url>https://github.com/plilja/jackson-versioning</url>
+        <developerConnection>scm:git:git@github.com:plilja/jackson-versioning.git</developerConnection>
+      <tag>HEAD</tag>
+  </scm>
+
     <build>
         <plugins>
             <plugin>
@@ -122,4 +136,14 @@
             </snapshots>
         </pluginRepository>
     </pluginRepositories>
+
+    <distributionManagement>
+        <repository>
+            <uniqueVersion>false</uniqueVersion>
+            <id>patlil-github</id>
+            <layout>default</layout>
+            <name>patlil github</name>
+            <url>https://maven.pkg.github.com/plilja/jackson-versioning</url>
+        </repository>
+    </distributionManagement>
 </project>
