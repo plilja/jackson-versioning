@@ -28,11 +28,11 @@
     <parent>
         <groupId>se.plilja</groupId>
         <artifactId>jackson-versioning-parent</artifactId>
-        <version>1.0</version>
+        <version>1.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>jackson-versioning</artifactId>
-    <version>1.0</version>
+    <version>1.1-SNAPSHOT</version>
     <name>jackson-versioning</name>
     <description>Version model classes in Jackson</description>
     <packaging>jar</packaging>
