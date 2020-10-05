@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class CarConverter extends AbstractVersionConverter<ApiVersion> {
     public CarConverter() {
-        super(CarConverter.class);
+        super(Car.class);
         attributeRenamed(ApiVersion.V3, "company", "make");
     }
 }
